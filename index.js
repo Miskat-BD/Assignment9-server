@@ -34,7 +34,10 @@ async function run() {
         const db = client.db('mediQueue');
         const tutorCollection = db.collection('tutors')
 
-
+        app.get('/tutors', async(req, res)=>{
+            const result = await tutorCollection.find().toArray();
+            res.send(result)
+        })
 
         app.post('/tutors', async (req, res) => {
             const tutorData = req.body;
