@@ -1,6 +1,6 @@
 const express = require('express')
 const app = express()
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 const cors = require('cors')
 const port = process.env.PORT
@@ -39,6 +39,12 @@ async function run() {
             res.send(result)
         })
 
+        app.get('/tutors/:id', async (req, res)=>{
+            const id = req.params.id;
+            const result = await tutorCollection.findOne({_id : new ObjectId(id)});
+            res.send(result)
+        })
+
         app.post('/tutors', async (req, res) => {
             const tutorData = req.body;
             const result = await tutorCollection.insertOne(tutorData)
@@ -49,6 +55,7 @@ async function run() {
             const result = await tutorCollection.find().limit(6).toArray();
             res.send(result)
         })
+
 
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
