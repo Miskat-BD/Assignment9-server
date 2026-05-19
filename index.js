@@ -34,14 +34,20 @@ async function run() {
         const db = client.db('mediQueue');
         const tutorCollection = db.collection('tutors')
 
-        app.get('/tutors', async(req, res)=>{
+        app.get('/tutors', async (req, res) => {
             const result = await tutorCollection.find().toArray();
             res.send(result)
         })
 
-        app.get('/tutors/:id', async (req, res)=>{
+        app.get('/tutors/:id', async (req, res) => {
             const id = req.params.id;
-            const result = await tutorCollection.findOne({_id : new ObjectId(id)});
+            const result = await tutorCollection.findOne({ _id: new ObjectId(id) });
+            res.send(result)
+        })
+
+        app.delete('/tutors/:id', async (req, res) => {
+            const id = req.params.id;
+            const result = await tutorCollection.deleteOne({ _id: new ObjectId(id) })
             res.send(result)
         })
 
@@ -51,7 +57,13 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/featured', async (req, res)=>{
+        app.get('/my-tutor/:userId', async (req, res)=>{
+            const userId = req.params.userId;
+            const result = await tutorCollection.find({userId}).toArray();
+            res.send(result)
+        })
+
+        app.get('/featured', async (req, res) => {
             const result = await tutorCollection.find().limit(6).toArray();
             res.send(result)
         })
