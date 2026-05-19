@@ -57,6 +57,15 @@ async function run() {
             res.send(result)
         })
 
+        app.patch('/tutors/:id', async (req, res)=>{
+            const id = req.params.id;
+            const updatedData = req.body
+            const result = await tutorCollection.updateOne(
+                {_id: new ObjectId(id)}, {$set : updatedData}
+            )
+            res.send(result)
+        })
+
         app.get('/my-tutor/:userId', async (req, res)=>{
             const userId = req.params.userId;
             const result = await tutorCollection.find({userId}).toArray();
