@@ -33,6 +33,7 @@ async function run() {
         await client.db("admin").command({ ping: 1 });
         const db = client.db('mediQueue');
         const tutorCollection = db.collection('tutors')
+        const bookingCollection = db.collection('bookings')
 
         app.get('/tutors', async (req, res) => {
             const result = await tutorCollection.find().toArray();
@@ -57,23 +58,67 @@ async function run() {
             res.send(result)
         })
 
-        app.patch('/tutors/:id', async (req, res)=>{
+        app.patch('/tutors/:id', async (req, res) => {
             const id = req.params.id;
             const updatedData = req.body
             const result = await tutorCollection.updateOne(
-                {_id: new ObjectId(id)}, {$set : updatedData}
+                { _id: new ObjectId(id) }, { $set: updatedData }
             )
             res.send(result)
         })
 
-        app.get('/my-tutor/:userId', async (req, res)=>{
+        app.get('/my-tutor/:userId', async (req, res) => {
             const userId = req.params.userId;
-            const result = await tutorCollection.find({userId}).toArray();
+            const result = await tutorCollection.find({ userId }).toArray();
             res.send(result)
         })
 
         app.get('/featured', async (req, res) => {
             const result = await tutorCollection.find().limit(6).toArray();
+            res.send(result)
+        })
+
+        app.get('/bookings', async (req, res) => {
+            const result = await bookingCollection.find().toArray()
+            res.send(result)
+        })
+
+        app.post('/bookings', async (req, res) => {
+            const bookingData = req.body;
+            const tutor = await tutorCollection.findOne({ _id: new ObjectId(bookingData.tutorId) });
+
+            //slot check
+            if(tutor.slot <= 0){
+                return res.send({
+                    success: false,
+                    message:"No available slots left"
+                })
+            }
+            //Date check
+            const currentDate = new Date();
+            const sessionDate = new Date(tutor.sessionStartDate)
+
+            if (currentDate < sessionDate) {
+                return res.send({
+                    success: false,
+                    message: 'Booking is not available yet for this tutor'
+                })
+            }
+
+            // slot minus
+            await tutorCollection.updateOne(
+                { _id: tutor._id },
+                {
+                    $inc: {
+                        slot: -1
+                    }
+                }
+            )
+            const result = await bookingCollection.insertOne({
+                ...bookingData,
+                bookingStatus: "Booked",
+                bookingDate: new Date()
+            })
             res.send(result)
         })
 
