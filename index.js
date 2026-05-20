@@ -78,8 +78,22 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/bookings', async (req, res) => {
-            const result = await bookingCollection.find().toArray()
+        app.get('/bookings',async (req,res)=>{
+            // const userId = req.params.userId;
+            const result = await bookingCollection.find().toArray();
+            res.send(result)
+        })
+
+        app.patch('/bookings/:bookingId', async (req, res)=>{
+            const bookingId = req.params.bookingId;
+            const result = await bookingCollection.updateOne(
+                {_id : new ObjectId(bookingId)},
+                {
+                    $set:{
+                        bookingStatus : "Cancelled"
+                    }
+                }
+            )
             res.send(result)
         })
 
