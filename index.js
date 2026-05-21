@@ -2,7 +2,8 @@ const express = require('express')
 const app = express()
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
-const cors = require('cors')
+const cors = require('cors');
+const { createRemoteJWKSet, jwtVerify } = require('jose-cjs');
 const port = process.env.PORT
 
 app.use(cors())
@@ -25,22 +26,57 @@ const client = new MongoClient(uri, {
     }
 });
 
+const JWKS = createRemoteJWKSet(
+    new URL(`${process.env.CLIENT_URL}/api/auth/jwks`)
+)
+
+// Middleware
+const verifyToken = async(req, res, next) => {
+    const authHeader = req?.headers?.authorization
+    const token = authHeader?.split(" ")[1]
+    if (!authHeader) {
+        return res.status(401).json({ message: "Unauthorized" })
+    }
+    if (!token) {
+        return res.status(401).json({ message: "Unauthorized" })
+    }
+    // console.log(token);
+    try {
+        const { payload } = await jwtVerify(token, JWKS)
+        console.log(payload);
+        next()
+    } catch {
+        res.status(403).json({ message: "Forbidden" })
+    }
+
+}
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+        // await client.db("admin").command({ ping: 1 });
         const db = client.db('mediQueue');
         const tutorCollection = db.collection('tutors')
         const bookingCollection = db.collection('bookings')
 
         app.get('/tutors', async (req, res) => {
-            const result = await tutorCollection.find().toArray();
+            const search = req.query.search;
+            console.log(search);
+            let query = {}
+            if(search){
+                console.log('test');
+                query.tutorName={
+                    $regex:search,
+                    $options: 'i'
+                }
+            }
+            const result = await tutorCollection.find(query).toArray();
             res.send(result)
         })
 
-        app.get('/tutors/:id', async (req, res) => {
+        app.get('/tutors/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const result = await tutorCollection.findOne({ _id: new ObjectId(id) });
             res.send(result)
@@ -52,7 +88,7 @@ async function run() {
             res.send(result)
         })
 
-        app.post('/tutors', async (req, res) => {
+        app.post('/tutors', verifyToken, async (req, res) => {
             const tutorData = req.body;
             const result = await tutorCollection.insertOne(tutorData)
             res.send(result)
@@ -67,7 +103,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/my-tutor/:userId', async (req, res) => {
+        app.get('/my-tutor/:userId', verifyToken, async (req, res) => {
             const userId = req.params.userId;
             const result = await tutorCollection.find({ userId }).toArray();
             res.send(result)
@@ -78,19 +114,19 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/bookings',async (req,res)=>{
+        app.get('/bookings',verifyToken, async (req, res) => {
             // const userId = req.params.userId;
             const result = await bookingCollection.find().toArray();
             res.send(result)
         })
 
-        app.patch('/bookings/:bookingId', async (req, res)=>{
+        app.patch('/bookings/:bookingId', async (req, res) => {
             const bookingId = req.params.bookingId;
             const result = await bookingCollection.updateOne(
-                {_id : new ObjectId(bookingId)},
+                { _id: new ObjectId(bookingId) },
                 {
-                    $set:{
-                        bookingStatus : "Cancelled"
+                    $set: {
+                        bookingStatus: "Cancelled"
                     }
                 }
             )
@@ -102,10 +138,10 @@ async function run() {
             const tutor = await tutorCollection.findOne({ _id: new ObjectId(bookingData.tutorId) });
 
             //slot check
-            if(tutor.slot <= 0){
+            if (tutor.slot <= 0) {
                 return res.send({
                     success: false,
-                    message:"No available slots left"
+                    message: "No available slots left"
                 })
             }
             //Date check
